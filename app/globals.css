@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --toro-gold: #d49a3a;
+  --toro-dark: #2e1e0b;
+  --toro-cream: #fdf8f0;
+  --toro-stone: #6a615a;
+}
+
+body {
+  background-color: #f8f7f5;
+  color: #22201c;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Scrollbar sutil */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #bfb9ac; border-radius: 3px; }
+
+/* Animaciones de entrada */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.4s ease both; }
+
+/* Cards base */
+.card {
+  @apply bg-white rounded-2xl border border-stone-200 p-6;
+}
+
+/* Número grande */
+.stat-number {
+  @apply text-3xl font-bold tracking-tight;
+  font-family: Georgia, serif;
+  color: #2e1e0b;
+}
