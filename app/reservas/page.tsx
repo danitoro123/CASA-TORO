@@ -33,7 +33,7 @@ export default function ReservasPage() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [rol, setRol] = useState('')
   const [form, setForm] = useState({
     huesped: '', fecha_llegada: '', fecha_salida: '',
     ingreso_bruto: '', comision_airbnb: '', ingreso_neto: '',
@@ -41,15 +41,8 @@ export default function ReservasPage() {
   })
 
   useEffect(() => {
-    // Verificar sesión y rol
-    supabase.auth.getSession().then(({ data }) => {
-      const user = data.session?.user
-      if (!user) {
-        window.location.href = '/login'
-        return
-      }
-      const rol = user.user_metadata?.rol ?? ''
-      setIsAdmin(rol === 'admin')
+    supabase.auth.getUser().then(({ data }) => {
+      setRol(data.user?.user_metadata?.rol ?? '')
     })
     loadReservas()
   }, [])
@@ -58,7 +51,7 @@ export default function ReservasPage() {
     const { data } = await supabase
       .from('reservas')
       .select('*')
-      .order('fecha_llegada', { ascending: false })
+      .order('fecha_llegada', { ascending: true })
     setReservas(data ?? [])
     setLoading(false)
   }
@@ -71,7 +64,7 @@ export default function ReservasPage() {
       if (json.ok) await loadReservas()
       alert(json.message ?? 'Sincronizado')
     } catch {
-      alert('Error al sincronizar.')
+      alert('Error al sincronizar. Verifica la URL iCal en configuración.')
     }
     setSyncing(false)
   }
@@ -100,8 +93,11 @@ export default function ReservasPage() {
     }
   }
 
+  const isAdmin = rol === 'admin'
+
   return (
     <div className="max-w-5xl mx-auto">
+      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h2 className="text-2xl font-bold text-stone-800" style={{ fontFamily: 'Georgia, serif' }}>Reservas</h2>
@@ -127,7 +123,8 @@ export default function ReservasPage() {
         )}
       </div>
 
-      {showForm && isAdmin && (
+      {/* Form nueva reserva */}
+      {showForm && (
         <div className="card mb-6 border-[#d49a3a]/30">
           <h3 className="font-semibold text-stone-800 mb-4">Nueva reserva</h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -144,6 +141,8 @@ export default function ReservasPage() {
                 <label className="text-xs text-stone-500 block mb-1">{label}</label>
                 <input
                   type={type}
+                  min={type === 'number' ? 0 : undefined}
+                  max={key === 'calificacion' ? 5 : undefined}
                   placeholder={ph}
                   value={(form as any)[key]}
                   onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
@@ -151,6 +150,27 @@ export default function ReservasPage() {
                 />
               </div>
             ))}
+            <div>
+              <label className="text-xs text-stone-500 block mb-1">Estado</label>
+              <select
+                value={form.estado}
+                onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#d49a3a]"
+              >
+                <option value="confirmada">Confirmada</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="cancelada">Cancelada</option>
+              </select>
+            </div>
+            <div className="col-span-2 md:col-span-3">
+              <label className="text-xs text-stone-500 block mb-1">Reseña del huésped</label>
+              <textarea
+                value={form.resena}
+                onChange={e => setForm(f => ({ ...f, resena: e.target.value }))}
+                rows={2}
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#d49a3a] resize-none"
+              />
+            </div>
             <div className="col-span-2 md:col-span-3 flex gap-2 justify-end">
               <button type="button" onClick={() => setShowForm(false)} className="text-sm px-4 py-2 text-stone-500 hover:text-stone-700">Cancelar</button>
               <button type="submit" className="text-sm px-5 py-2 bg-[#d49a3a] text-[#2e1e0b] font-semibold rounded-xl hover:bg-[#e2b96a] transition-colors">Guardar</button>
@@ -159,6 +179,7 @@ export default function ReservasPage() {
         </div>
       )}
 
+      {/* Tabla */}
       {loading ? (
         <div className="flex justify-center py-20">
           <div className="w-8 h-8 border-2 border-[#d49a3a] border-t-transparent rounded-full animate-spin" />
@@ -175,7 +196,7 @@ export default function ReservasPage() {
             </thead>
             <tbody>
               {reservas.length === 0 ? (
-                <tr><td colSpan={7} className="text-center text-stone-400 py-16">Sin reservas aún</td></tr>
+                <tr><td colSpan={7} className="text-center text-stone-400 py-16">Sin reservas aún — haz clic en Sync iCal o agrega una manualmente</td></tr>
               ) : reservas.map(r => (
                 <tr key={r.id} className="border-b border-stone-50 hover:bg-stone-50/50 transition-colors">
                   <td className="px-5 py-3 font-medium text-stone-800">{r.huesped || '—'}</td>
@@ -184,10 +205,14 @@ export default function ReservasPage() {
                   <td className="px-5 py-3 text-stone-600">{r.noches}</td>
                   <td className="px-5 py-3 font-medium text-stone-800">{r.ingreso_neto > 0 ? COP(r.ingreso_neto) : '—'}</td>
                   <td className="px-5 py-3">
-                    {r.calificacion ? <span className="text-[#d49a3a]">{'★'.repeat(r.calificacion)}{'☆'.repeat(5 - r.calificacion)}</span> : '—'}
+                    {r.calificacion ? (
+                      <span className="text-[#d49a3a]">{'★'.repeat(r.calificacion)}{'☆'.repeat(5 - r.calificacion)}</span>
+                    ) : '—'}
                   </td>
                   <td className="px-5 py-3">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${ESTADOS[r.estado] ?? ''}`}>{r.estado}</span>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${ESTADOS[r.estado] ?? ''}`}>
+                      {r.estado}
+                    </span>
                   </td>
                 </tr>
               ))}
