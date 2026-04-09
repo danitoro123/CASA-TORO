@@ -1,33 +1,32 @@
 'use client'
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      setError('Correo o contraseña incorrectos')
+      setError(error.message)
       setLoading(false)
+    } else if (data.session) {
+      window.location.href = '/dashboard'
     } else {
-      router.push('/dashboard')
+      setError('No se pudo iniciar sesión')
+      setLoading(false)
     }
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#2e1e0b' }}>
       <div className="w-full max-w-sm px-6">
-
-        {/* Logo */}
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold text-[#d49a3a] mb-1" style={{ fontFamily: 'Georgia, serif' }}>
             Casa Toro
@@ -35,7 +34,6 @@ export default function LoginPage() {
           <p className="text-stone-500 text-sm">Panel de gestión</p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleLogin} className="bg-[#3d2a10] rounded-2xl p-8 flex flex-col gap-4 border border-[#4d3515]">
           <div>
             <label className="text-xs text-stone-400 uppercase tracking-wider block mb-1.5">
@@ -65,7 +63,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <p className="text-red-400 text-sm text-center">{error}</p>
+            <p className="text-red-400 text-sm text-center bg-red-950/30 rounded-lg p-2">{error}</p>
           )}
 
           <button
